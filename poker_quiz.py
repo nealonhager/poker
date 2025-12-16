@@ -5,6 +5,7 @@ Texas Hold'em Best Hand Quiz CLI Program
 A multiple choice quiz that tests knowledge of Texas Hold'em hand rankings.
 """
 
+import argparse
 import random
 from dataclasses import dataclass
 from enum import Enum
@@ -521,9 +522,13 @@ def format_cards(cards: List[Card]) -> str:
     return " ".join(format_card(card) for card in cards)
 
 
-def generate_quiz() -> Tuple[Board, List[Hand], int]:
+def generate_quiz(num_answers: Optional[int] = None) -> Tuple[Board, List[Hand], int]:
     """
     Generate a quiz question with board and multiple player hands.
+
+    Args:
+        num_answers: Optional number of answer choices (hands) to generate.
+            If None, randomly generates 4-9 hands. Must be at least 2.
 
     Returns:
         Tuple of (board, hands, correct_answer_index).
@@ -537,8 +542,18 @@ def generate_quiz() -> Tuple[Board, List[Hand], int]:
     board = Board(board_cards)
     remaining_deck = deck[5:]
 
-    # Generate 4-9 player hands
-    num_hands = random.randint(4, 9)
+    # Calculate maximum possible hands (47 cards remaining, need 2 per hand)
+    max_possible_hands = len(remaining_deck) // 2
+
+    # Generate player hands
+    if num_answers is not None:
+        if num_answers < 2:
+            raise ValueError("num_answers must be at least 2")
+        num_hands = min(num_answers, max_possible_hands)
+    else:
+        # Default behavior: random between 4-9, but not exceeding available cards
+        num_hands = random.randint(4, min(9, max_possible_hands))
+
     hands: List[Hand] = []
 
     for i in range(num_hands):
@@ -593,6 +608,26 @@ def display_quiz(board: Board, hands: List[Hand], correct_idx: int) -> None:
 
 def main() -> None:
     """Main quiz loop."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Texas Hold'em Best Hand Quiz - "
+            "Test your knowledge of poker hand rankings"
+        )
+    )
+    parser.add_argument(
+        "--num-answers",
+        type=int,
+        default=None,
+        help=(
+            "Number of answer choices (hands) per question. "
+            "If not provided, randomly generates 4-9 hands."
+        ),
+    )
+    args = parser.parse_args()
+
+    if args.num_answers is not None and args.num_answers < 2:
+        parser.error("--num-answers must be at least 2")
+
     print("Welcome to Texas Hold'em Best Hand Quiz!")
     print("Type 'quit' to exit at any time.\n")
 
@@ -600,7 +635,7 @@ def main() -> None:
     total = 0
 
     while True:
-        board, hands, correct_idx = generate_quiz()
+        board, hands, correct_idx = generate_quiz(args.num_answers)
 
         # Don't show the answer initially
         display_quiz(board, hands, -1)
